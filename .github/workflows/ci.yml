@@ -29,10 +29,21 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements*.txt
       - run: pip install -r requirements-dev.txt
-      - run: ruff check app tests
+      - name: Lint
+        run: ruff check --output-format=github app tests
       - name: Tests (SQLite, mock AI provider)
-        run: pytest
+        if: always()
+        run: |
+          set +e
+          pytest -x -q -p no:cacheprovider > pytest.out 2>&1
+          status=$?
+          cat pytest.out
+          if [ $status -ne 0 ]; then
+            python -c "import sys,urllib.parse as u; t=open('pytest.out').read()[-6000:]; print('::error title=pytest::' + t.replace('%','%25').replace('\r','').replace('\n','%0A'))"
+          fi
+          exit $status
       - name: Smoke test against Postgres
+        if: always()
         env:
           DATABASE_URL: postgresql+psycopg://offerready:offerready@localhost:5432/offerready
           AI_PROVIDER: mock

@@ -52,7 +52,7 @@ def _interviewer_message(meta: dict, lang: str) -> str:
 
 def _report(meta: dict) -> dict:
     cats = []
-    for cat, score in (meta.get("category_scores") or {}).items():
+    for cat in meta.get("category_scores") or {}:
         items = [e for e in meta.get("evaluations", []) if e["category"] == cat]
         strengths = [f"{e['topic']}: {round(e['score'])}" for e in items if e["score"] >= 70][:3]
         weak = [f"{e['topic']}: {', '.join(e.get('missing_points', [])[:2]) or 'needs more depth'}" for e in items if e["score"] < 70][:3]
