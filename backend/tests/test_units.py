@@ -74,3 +74,25 @@ def test_match_is_explainable():
 
 def test_status_bands():
     assert [status_for(x) for x in (85, 70, 50, 20)] == ["READY", "ALMOST_READY", "NEEDS_WORK", "NOT_READY"]
+
+
+def test_settings_on_vercel(monkeypatch):
+    from app.core.config import Settings
+
+    monkeypatch.setenv("VERCEL", "1")
+    monkeypatch.setenv("VERCEL_PROJECT_PRODUCTION_URL", "offerready.vercel.app")
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setenv("POSTGRES_URL", "postgres://u:p@host.neon.tech/db?sslmode=require")
+    s = Settings(_env_file=None)
+    assert s.database_url == "postgresql+psycopg://u:p@host.neon.tech/db?sslmode=require"
+    assert s.cookie_secure is True and s.storage_backend == "none"
+    assert s.frontend_url == "https://offerready.vercel.app"
+    assert s.payments_sandbox is True
+
+
+def test_settings_production_disables_sandbox(monkeypatch):
+    from app.core.config import Settings
+
+    monkeypatch.delenv("VERCEL", raising=False)
+    s = Settings(_env_file=None, environment="production", jwt_secret="x" * 40)
+    assert s.payments_sandbox is False and s.cookie_secure is True

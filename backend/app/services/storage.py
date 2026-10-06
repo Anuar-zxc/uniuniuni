@@ -15,6 +15,8 @@ class Storage:
             from cryptography.fernet import Fernet
 
             self._fernet = Fernet(s.file_encryption_key.encode())
+        if self.backend == "none":
+            return
         if self.backend == "s3":
             import boto3
 
@@ -27,7 +29,9 @@ class Storage:
             self._root = Path(s.storage_local_dir)
             self._root.mkdir(parents=True, exist_ok=True)
 
-    def save(self, data: bytes, prefix: str, ext: str) -> str:
+    def save(self, data: bytes, prefix: str, ext: str) -> str | None:
+        if self.backend == "none":
+            return None  # only the extracted text is kept
         key = f"{prefix}/{uuid.uuid4().hex}{ext}"
         payload = self._fernet.encrypt(data) if self._fernet else data
         if self.backend == "s3":
@@ -39,6 +43,8 @@ class Storage:
         return key
 
     def load(self, key: str) -> bytes:
+        if self.backend == "none":
+            raise FileNotFoundError(key)
         if self.backend == "s3":
             payload = self._s3.get_object(Bucket=self._bucket, Key=key)["Body"].read()
         else:
@@ -46,6 +52,8 @@ class Storage:
         return self._fernet.decrypt(payload) if self._fernet else payload
 
     def delete(self, key: str) -> None:
+        if self.backend == "none":
+            return
         try:
             if self.backend == "s3":
                 self._s3.delete_object(Bucket=self._bucket, Key=key)

@@ -68,7 +68,7 @@ class SandboxProvider(PaymentProvider):
 
     @property
     def configured(self) -> bool:
-        return get_settings().environment != "production"
+        return bool(get_settings().payments_sandbox)
 
 
 class StripeProvider(PaymentProvider):

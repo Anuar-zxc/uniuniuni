@@ -1,4 +1,5 @@
 import logging
+import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -20,8 +21,15 @@ async def lifespan(_: FastAPI):
         raise RuntimeError("JWT_SECRET must be set in production")
     if s.auto_create_tables:
         init_db()
-    with SessionLocal() as db:
-        seed_all(db)
+    for attempt in range(3):
+        try:
+            with SessionLocal() as db:
+                seed_all(db)
+            break
+        except Exception:  # concurrent cold starts may both try to insert seeds
+            if attempt == 2:
+                raise
+            time.sleep(1.5)
     yield
 
 

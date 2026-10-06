@@ -1,7 +1,8 @@
+import os
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field
+from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -13,10 +14,14 @@ class Settings(BaseSettings):
     app_name: str = "OfferReady"
     environment: Literal["development", "test", "production"] = "development"
     api_prefix: str = "/api/v1"
-    frontend_url: str = "http://localhost:3000"
+    frontend_url: str | None = None  # public base URL; derived from Vercel env when unset
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
 
-    database_url: str = "postgresql+psycopg://offerready:offerready@localhost:5432/offerready"
+    # Accepts DATABASE_URL or POSTGRES_URL (Neon / Vercel Postgres integrations set these).
+    database_url: str = Field(
+        default="postgresql+psycopg://offerready:offerready@localhost:5432/offerready",
+        validation_alias=AliasChoices("DATABASE_URL", "POSTGRES_URL", "database_url"),
+    )
     auto_create_tables: bool = True
     redis_url: str | None = None
 
@@ -25,7 +30,7 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_minutes: int = 60 * 24 * 7
     cookie_name: str = "or_session"
-    cookie_secure: bool = False
+    cookie_secure: bool | None = None  # defaults to True on Vercel / production
     google_client_id: str | None = None
     apple_client_id: str | None = None
 
@@ -47,7 +52,8 @@ class Settings(BaseSettings):
     ai_price_output_per_m: float = 0.10
 
     # Storage
-    storage_backend: Literal["local", "s3"] = "local"
+    # none = keep only extracted CV text (no raw file) — data minimisation, and the default on serverless
+    storage_backend: Literal["local", "s3", "none"] | None = None
     storage_local_dir: str = "./data/uploads"
     s3_endpoint_url: str | None = None
     s3_bucket: str = "offerready"
@@ -59,6 +65,7 @@ class Settings(BaseSettings):
 
     # Billing
     payment_provider_default: str = "sandbox"
+    payments_sandbox: bool | None = None  # test checkout without real money; defaults to on outside production
     stripe_secret_key: str | None = None
     stripe_webhook_secret: str | None = None
 
@@ -68,6 +75,33 @@ class Settings(BaseSettings):
     rate_limit_auth: int = 10
 
     admin_email: str | None = None  # user registering with this email becomes admin
+
+    @field_validator("database_url")
+    @classmethod
+    def _sqlalchemy_driver(cls, v: str) -> str:
+        # Hosted Postgres URLs come as postgres:// or postgresql:// — use the psycopg 3 driver.
+        for prefix in ("postgres://", "postgresql://"):
+            if v.startswith(prefix):
+                return "postgresql+psycopg://" + v[len(prefix):]
+        return v
+
+    @model_validator(mode="after")
+    def _platform_defaults(self) -> "Settings":
+        on_vercel = bool(os.environ.get("VERCEL"))
+        if self.frontend_url is None:
+            host = os.environ.get("VERCEL_PROJECT_PRODUCTION_URL") or os.environ.get("VERCEL_URL")
+            self.frontend_url = f"https://{host}" if host else "http://localhost:3000"
+        if self.cookie_secure is None:
+            self.cookie_secure = on_vercel or self.environment == "production"
+        if self.storage_backend is None:
+            self.storage_backend = "none" if on_vercel else "local"
+        if self.payments_sandbox is None:
+            self.payments_sandbox = self.environment != "production"
+        return self
+
+    @property
+    def is_serverless(self) -> bool:
+        return bool(os.environ.get("VERCEL"))
 
     @property
     def is_test(self) -> bool:

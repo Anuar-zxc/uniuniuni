@@ -8,7 +8,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ARG BACKEND_URL=http://backend:8000
-ENV BACKEND_URL=$BACKEND_URL NEXT_TELEMETRY_DISABLED=1
+ENV BACKEND_URL=$BACKEND_URL NEXT_TELEMETRY_DISABLED=1 DOCKER_BUILD=1
 RUN npm run build
 
 FROM node:22-alpine AS run

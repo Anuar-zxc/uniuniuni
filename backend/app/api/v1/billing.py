@@ -43,7 +43,7 @@ def checkout(body: CheckoutIn, user: CurrentUser, db: DB):
 
 @router.post("/sandbox/confirm")
 def sandbox_confirm(body: SandboxConfirmIn, user: CurrentUser, db: DB):
-    if get_settings().environment == "production":
+    if not get_settings().payments_sandbox:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
     sub = db.scalar(select(Subscription).where(Subscription.external_id == body.external_id, Subscription.user_id == user.id))
     if sub is None:
