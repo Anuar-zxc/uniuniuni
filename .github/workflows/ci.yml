@@ -62,3 +62,36 @@ jobs:
               assert c.get('/api/v1/dashboard', headers=h).status_code == 200
           print('postgres smoke ok')
           "
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - name: Build (includes type check)
+        run: |
+          set +e
+          npm run build > build.out 2>&1
+          status=$?
+          cat build.out
+          if [ $status -ne 0 ]; then
+            node -e "const t=require('fs').readFileSync('build.out','utf8').slice(-6000);console.log('::error title=next build::'+t.replace(/%/g,'%25').replace(/\r/g,'').replace(/\n/g,'%0A'))"
+          fi
+          exit $status
+      - name: Lint
+        if: always()
+        run: |
+          set +e
+          npx next lint --format compact > lint.out 2>&1
+          status=$?
+          cat lint.out
+          if [ $status -ne 0 ]; then
+            node -e "const t=require('fs').readFileSync('lint.out','utf8').slice(-6000);console.log('::error title=eslint::'+t.replace(/%/g,'%25').replace(/\r/g,'').replace(/\n/g,'%0A'))"
+          fi
+          exit $status
