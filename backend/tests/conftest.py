@@ -8,7 +8,7 @@ os.environ.update({
     "AI_PROVIDER": "mock",
     "STORAGE_LOCAL_DIR": f"{_tmp}/uploads",
     "ADMIN_EMAIL": "admin@example.com",
-    "JWT_SECRET": "test-secret",
+    "JWT_SECRET": "test-secret-that-is-at-least-32-bytes-long",
 })
 
 import pytest  # noqa: E402

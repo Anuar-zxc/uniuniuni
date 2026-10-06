@@ -143,6 +143,7 @@ def test_ownership_and_auth(client):
     r = client.post("/api/v1/resumes/text", headers=a, json={"text": CV})
     rid = r.json()["id"]
     assert client.get(f"/api/v1/resumes/{rid}", headers=b).status_code == 404
+    client.cookies.clear()  # TestClient keeps the last session cookie
     assert client.get("/api/v1/dashboard").status_code == 401
     bad = client.post("/api/v1/resumes", headers=a, files={"file": ("cv.pdf", b"not a pdf at all" * 20, "application/pdf")})
     assert bad.status_code == 422

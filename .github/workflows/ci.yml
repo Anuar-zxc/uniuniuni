@@ -88,7 +88,7 @@ jobs:
         if: always()
         run: |
           set +e
-          npx next lint --format compact > lint.out 2>&1
+          npx eslint src > lint.out 2>&1
           status=$?
           cat lint.out
           if [ $status -ne 0 ]; then
