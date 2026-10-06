@@ -23,6 +23,8 @@ DATABASE_URL=sqlite:///./dev.db AI_PROVIDER=mock uvicorn app.main:app --reload
 cd frontend && npm install && npm run dev      # проксирует /api → http://localhost:8000
 ```
 
+Проверка ключа LLM: `cd backend && python -m scripts.check_llm` (вызовет чат и структурную оценку ответа).
+
 Тесты: `cd backend && pytest` (SQLite + mock-провайдер; сквозной сценарий от загрузки CV до ретеста и оплаты).
 
 ## Архитектура
