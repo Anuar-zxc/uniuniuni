@@ -1,4 +1,4 @@
-from fastapi import APIRouter, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from app.core.config import get_settings
 from app.core.deps import DB, CurrentUser
@@ -34,7 +34,7 @@ def upload_resume(user: CurrentUser, db: DB, file: UploadFile = File(...)):
     try:
         resume = resume_service.create_resume(db, user, file.filename or "cv", file.content_type or "", data)
     except ResumeParseError as e:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(e)) from e
+        raise HTTPException(422, str(e)) from e
     return _analyze(db, user, resume)
 
 
@@ -44,7 +44,7 @@ def paste_resume(body: ResumeTextIn, user: CurrentUser, db: DB):
     try:
         resume = resume_service.create_resume_from_text(db, user, body.text)
     except ValueError as e:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(e)) from e
+        raise HTTPException(422, str(e)) from e
     return _analyze(db, user, resume)
 
 

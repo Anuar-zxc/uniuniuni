@@ -90,6 +90,9 @@ def reconcile(samples: list[AnswerEvaluationAI], heur: AnswerEvaluationAI, inp: 
     if heur.score <= 10 and base.score > 25:
         base.score = min(base.score, 25)
         base.correctness = min(base.correctness, 25)
+        base.depth = min(base.depth, 25)
+        base.technical_accuracy = min(base.technical_accuracy, 25)
+        base.communication = min(base.communication, 40)
         flags.append("non_answer_capped")
     # 2) Composite cross-check: overall must agree with its own sub-scores.
     composite = 0.35 * base.correctness + 0.25 * base.depth + 0.15 * base.communication + 0.25 * base.technical_accuracy
