@@ -40,10 +40,11 @@
     font-size: 16px;
     line-height: 1.55;
   }
-  h1, h2, h3 { @apply font-display text-ink; letter-spacing: -0.01em; }
-  h1 { font-size: clamp(1.75rem, 1.2rem + 2vw, 2.5rem); line-height: 1.15; font-weight: 600; }
-  h2 { font-size: 1.375rem; line-height: 1.25; font-weight: 600; }
-  h3 { font-size: 1.0625rem; line-height: 1.3; font-weight: 600; }
+  /* Unbounded (wide display) only for page titles and numerals; section headings use the text face for readability. */
+  h1 { @apply font-display text-ink; font-size: clamp(1.75rem, 1.2rem + 2vw, 2.5rem); line-height: 1.15; font-weight: 600; letter-spacing: -0.015em; }
+  h2, h3 { @apply font-sans text-ink; font-weight: 600; letter-spacing: -0.01em; }
+  h2 { font-size: 1.5rem; line-height: 1.25; }
+  h3 { font-size: 1.0625rem; line-height: 1.35; }
   :focus-visible { outline: 2px solid rgb(var(--primary)); outline-offset: 2px; border-radius: 6px; }
   ::selection { background: rgb(var(--primary) / 0.2); }
 }

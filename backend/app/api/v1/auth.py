@@ -12,14 +12,14 @@ from app.services.usage import track
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-def _issue(response: Response, user: User) -> AuthOut:
+def _issue(response: Response, user: User, is_new: bool = False) -> AuthOut:
     s = get_settings()
     token = create_access_token(user.id, user.role)
     response.set_cookie(
         s.cookie_name, token, httponly=True, secure=s.cookie_secure, samesite="lax",
         max_age=s.access_token_minutes * 60, path="/",
     )
-    return AuthOut(access_token=token, user=UserOut.model_validate(user))
+    return AuthOut(access_token=token, user=UserOut.model_validate(user), is_new=is_new)
 
 
 def _create_user(db, email: str, *, name: str | None, locale: str, password: str | None, provider: str) -> User:
@@ -41,7 +41,7 @@ def register(body: RegisterIn, response: Response, db: DB, request: Request):
     user = _create_user(db, body.email, name=body.name, locale=body.locale, password=body.password, provider="password")
     db.add(AuditLog(actor_id=user.id, action="auth.register", entity="user", entity_id=str(user.id), ip=client_ip(request)))
     db.commit()
-    return _issue(response, user)
+    return _issue(response, user, is_new=True)
 
 
 @router.post("/login", response_model=AuthOut)
@@ -57,19 +57,36 @@ def login(body: LoginIn, response: Response, db: DB, request: Request):
 
 
 @router.post("/google", response_model=AuthOut)
-def google_login(body: GoogleLoginIn, response: Response, db: DB):
+def google_login(body: GoogleLoginIn, response: Response, db: DB, request: Request):
     s = get_settings()
     if not s.google_client_id:
         raise HTTPException(status.HTTP_501_NOT_IMPLEMENTED, "Google sign-in is not configured")
-    r = httpx.get("https://oauth2.googleapis.com/tokeninfo", params={"id_token": body.id_token}, timeout=10)
-    info = r.json() if r.status_code == 200 else {}
+    info = verify_google_id_token(body.id_token)
     if info.get("aud") != s.google_client_id or info.get("email_verified") not in ("true", True) or not info.get("email"):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid Google token")
     user = db.scalar(select(User).where(User.email == info["email"].lower()))
-    if user is None:
-        user = _create_user(db, info["email"], name=info.get("name"), locale="ru", password=None, provider="google")
+    is_new = user is None
+    if is_new:
+        user = _create_user(db, info["email"], name=info.get("name"), locale=body.locale, password=None, provider="google")
+    elif not user.is_active:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Account is disabled")
+    elif not user.name and info.get("name"):
+        user.name = info["name"][:200]
+    db.add(AuditLog(actor_id=user.id, action="auth.google", ip=client_ip(request)))
     db.commit()
-    return _issue(response, user)
+    return _issue(response, user, is_new=is_new)
+
+
+def verify_google_id_token(id_token: str) -> dict:
+    """Validate a Google Identity Services ID token via Google's tokeninfo endpoint (checks signature & expiry)."""
+    try:
+        r = httpx.get("https://oauth2.googleapis.com/tokeninfo", params={"id_token": id_token}, timeout=10)
+    except httpx.HTTPError as e:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Google is unreachable, try again") from e
+    info = r.json() if r.status_code == 200 else {}
+    if info.get("iss") not in ("accounts.google.com", "https://accounts.google.com"):
+        return {}
+    return info
 
 
 @router.post("/apple")

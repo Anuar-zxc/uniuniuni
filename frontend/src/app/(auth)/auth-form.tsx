@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { GoogleButton } from "@/components/google-button";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { ErrorNote } from "@/components/ui/states";
@@ -41,7 +42,8 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-4">
-      <h1 className="mb-2 text-3xl">{mode === "login" ? t("auth.login.title") : t("auth.register.title")}</h1>
+      <h1 className="mb-4 text-3xl">{mode === "login" ? t("auth.login.title") : t("auth.register.title")}</h1>
+      <GoogleButton mode={mode} onError={setError} />
       {mode === "register" && (
         <div><Label htmlFor="name">{t("auth.name")}</Label><Input id="name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" /></div>
       )}

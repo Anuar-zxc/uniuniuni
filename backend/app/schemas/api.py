@@ -28,7 +28,8 @@ class LoginIn(BaseModel):
 
 
 class GoogleLoginIn(BaseModel):
-    id_token: str
+    id_token: str = Field(min_length=20, max_length=4096)
+    locale: Lang = "ru"
 
 
 class UserOut(ORM):
@@ -44,6 +45,7 @@ class AuthOut(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserOut
+    is_new: bool = False  # first sign-in → frontend routes to onboarding
 
 
 class ProfileOut(ORM):
