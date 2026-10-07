@@ -149,3 +149,22 @@ def test_ownership_and_auth(client):
     assert bad.status_code == 422
     assert client.delete("/api/v1/profile", headers=b).status_code == 200
     assert client.get("/api/v1/profile", headers=b).status_code == 401
+
+
+def test_google_sign_in(client, monkeypatch):
+    from app.api.v1 import auth as auth_api
+    from app.core.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "google_client_id", "cid.apps.googleusercontent.com")
+    claims = {"iss": "https://accounts.google.com", "aud": "cid.apps.googleusercontent.com", "email": "G.User@gmail.com",
+              "email_verified": "true", "name": "G User"}
+    monkeypatch.setattr(auth_api, "verify_google_id_token", lambda tok: claims)
+    client.cookies.clear()
+    r = client.post("/api/v1/auth/google", json={"id_token": "x" * 40, "locale": "kk"})
+    assert r.status_code == 200, r.text
+    assert r.json()["is_new"] is True and r.json()["user"]["email"] == "g.user@gmail.com"
+    r2 = client.post("/api/v1/auth/google", json={"id_token": "x" * 40})
+    assert r2.json()["is_new"] is False
+    monkeypatch.setattr(auth_api, "verify_google_id_token", lambda tok: claims | {"aud": "someone-else"})
+    assert client.post("/api/v1/auth/google", json={"id_token": "x" * 40}).status_code == 401
+    assert client.get("/api/v1/auth/providers").json()["google"] is True
